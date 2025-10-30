@@ -1,4 +1,4 @@
-import { Button, Input, message, Space, Table, Tag, type TablePaginationConfig } from "antd";
+import { Button, Input, message, Select, Space, Table, Tag, type TablePaginationConfig } from "antd";
 import type { FilterValue, SorterResult } from "antd/es/table/interface";
 import { useEffect, useState, useCallback, type JSX } from "react";
 import dayjs from "dayjs";
@@ -26,8 +26,7 @@ interface ApiResponse {
 
 export default function UserManage(): JSX.Element {
     const [users, setUsers] = useState<User[]>([]);
-    const [search, setSearch] = useState<string>()
-    const [username, setUsername] = useState<string>()
+    const [username, setUsername] = useState<string | undefined>(undefined)
     const [status, setStatus] = useState<boolean>()
     const [role, setRole] = useState<string>()
     const [loading, setLoading] = useState<boolean>(false);
@@ -142,37 +141,37 @@ export default function UserManage(): JSX.Element {
             title: "ID",
             dataIndex: "id",
             key: "id",
-            width: 80,
+            width: 60,
         },
         {
             title: "用户名",
             dataIndex: "username",
             key: "username",
-            width: 120,
+            width: 100,
         },
         {
             title: "昵称",
             dataIndex: "nickname",
             key: "nickname",
-            width: 100,
+            width: 80,
         },
         {
             title: "邮箱",
             dataIndex: "email",
             key: "email",
-            width: 180,
+            width: 150,
         },
         {
             title: "手机号",
             dataIndex: "phone",
             key: "phone",
-            width: 130,
+            width: 120,
         },
         {
             title: "头像",
             dataIndex: "avatar",
             key: "avatar",
-            width: 80,
+            width: 60,
         },
         {
             title: "状态",
@@ -188,11 +187,7 @@ export default function UserManage(): JSX.Element {
                 }}>
                     {status ? '正常' : '禁用'}
                 </span>
-            ),
-            filters: [
-                { text: '正常', value: true },
-                { text: '禁用', value: false },
-            ]
+            )
         },
         {
             title: "角色",
@@ -203,17 +198,13 @@ export default function UserManage(): JSX.Element {
                 return role === 'admin' ?
                     <Tag color="processing">管理员</Tag> :
                     <Tag color="default">普通用户</Tag>;
-            },
-            filters: [
-                { text: '普通用户', value: 'user' },
-                { text: '管理员', value: 'admin' },
-            ],
+            }
         },
         {
             title: "最后登录",
             dataIndex: "lastLoginAt",
             key: "lastLoginAt",
-            width: 180,
+            width: 160,
             render: (date: string) => date !== null ?
                 dayjs(date).format('YYYY-MM-DD HH:mm:ss') : null,
         },
@@ -221,7 +212,7 @@ export default function UserManage(): JSX.Element {
             title: "创建时间",
             dataIndex: "gmtCreate",
             key: "gmtCreate",
-            width: 180,
+            width: 160,
             render: (date: string) => date !== null ?
                 dayjs(date).format('YYYY-MM-DD HH:mm:ss') : null,
         },
@@ -229,14 +220,14 @@ export default function UserManage(): JSX.Element {
             title: "更新时间",
             dataIndex: "gmtModified",
             key: "gmtModified",
-            width: 180,
+            width: 160,
             render: (date: string) => date !== null ?
                 dayjs(date).format('YYYY-MM-DD HH:mm:ss') : null,
         },
         {
             title: '操作',
             key: 'action',
-            width: 100,
+            width: 180,
             render: (_, record: User) => (
                 <Space size="middle">
                     <Button
@@ -268,16 +259,43 @@ export default function UserManage(): JSX.Element {
 
     return (
         <div style={{ background: "#fff", padding: 24, borderRadius: 8 }}>
-            <h2 style={{ marginBottom: 16 }}>用户管理</h2>
-
-            <Space style={{ marginBottom: 16 }}>
-                <Input
-                    placeholder="输入姓名或邮箱搜索"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+            <Space style={{ marginBottom: 16 }} align="baseline">
+                <Space.Compact>
+                    <span style={{ padding: '0 8px', lineHeight: '32px', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRight: 'none', borderRadius: '6px 0 0 6px', width: 60, textAlign: 'center' }}>关键词</span>
+                    <Input
+                    placeholder="输入姓名搜索"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
                     style={{ width: 240 }}
-                    allowClear
-                />
+                        allowClear
+                    />
+                </Space.Compact>
+                <Space.Compact>
+                    <span style={{ padding: '0 8px', lineHeight: '32px', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRight: 'none', borderRadius: '6px 0 0 6px', width: 60, textAlign: 'center' }}>状态</span>
+                    <Select
+                        placeholder="选择状态"
+                        value={status}
+                        onChange={setStatus}
+                        style={{ width: 240, height: 32 }}
+                        allowClear
+                    >
+                        <Select.Option value={true}>正常</Select.Option>
+                        <Select.Option value={false}>禁用</Select.Option>
+                    </Select>
+                </Space.Compact>
+                <Space.Compact>
+                    <span style={{ padding: '0 8px', lineHeight: '32px', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRight: 'none', borderRadius: '6px 0 0 6px', width: 60, textAlign: 'center' }}>角色</span>
+                    <Select
+                        placeholder="选择角色"
+                        value={role}
+                        onChange={setRole}
+                        style={{ width: 240, height: 32 }}
+                        allowClear
+                    >
+                        <Select.Option value="user">普通用户</Select.Option>
+                        <Select.Option value="admin">管理员</Select.Option>
+                    </Select>
+                </Space.Compact>
                 <Button type="primary" onClick={handleSearch}>
                     搜索
                 </Button>
