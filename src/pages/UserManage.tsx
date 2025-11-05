@@ -1,5 +1,6 @@
-import { Button, Input, message, Select, Space, Table, Tag, type TablePaginationConfig } from "antd";
-import type { FilterValue, SorterResult } from "antd/es/table/interface";
+import { Button, Input, message, Modal, Select, Space, Table, Tag, type TablePaginationConfig } from "antd";
+import UserEditModal from "../components/UserEditModal";
+import type { ColumnsType, FilterValue, SorterResult } from "antd/es/table/interface";
 import { useEffect, useState, useCallback, type JSX } from "react";
 import dayjs from "dayjs";
 import filterEmptyParams from "../components/FilterParam.tsx";
@@ -26,6 +27,9 @@ interface ApiResponse {
 
 export default function UserManage(): JSX.Element {
     const [users, setUsers] = useState<User[]>([]);
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [saveLoading, setSaveLoading] = useState(false);
     const [username, setUsername] = useState<string | undefined>(undefined)
     const [status, setStatus] = useState<boolean>()
     const [role, setRole] = useState<string>()
@@ -123,37 +127,104 @@ export default function UserManage(): JSX.Element {
     //         || user.email.toLowerCase().includes(search.toLowerCase())
     // )
 
-    function handleEdit(id: number): void {
-        throw new Error("Function not implemented.");
-    }
+    const handleEdit = (id: number) => {
+        const user = users.find(u => u.id === id);
+        if (user) {
+            setCurrentUser(user);
+            setEditModalVisible(true);
+        }
+    };
 
-    function handleDelete(id: number): void {
-        throw new Error("Function not implemented.");
-    }
+    const handleSaveUser = async (user: User) => {
+        setSaveLoading(true);
+        try {
+            // 这里调用API保存用户
+            const res = await fetch(`http://localhost:8080/user/update`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(user),
+            });
+
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}`);
+            }
+
+            // 更新本地状态
+            setUsers(users.map(u => u.id === user.id ? user : u));
+            message.success("用户信息更新成功");
+            setEditModalVisible(false);
+        } catch (err) {
+            console.error(err);
+            message.error("更新用户信息失败");
+        } finally {
+            setSaveLoading(false);
+        }
+    };
+
+    const handleDelete = (id: number) => {
+        Modal.confirm({
+            title: '确认删除',
+            content: '确定要逻辑删除这个用户吗？',
+            okText: '确认',
+            cancelText: '取消',
+            onOk: async () => {
+                try {
+                    const res = await fetch(`http://localhost:8080/user/logicDelete/${id}`, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    });
+
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}`);
+                    }
+
+                    // 更新本地状态
+                    setUsers(users.filter(user => user.id !== id));
+                    message.success("用户已逻辑删除");
+                    
+                    // 更新分页总数
+                    setPagination(prev => ({
+                        ...prev,
+                        total: prev.total ? prev.total - 1 : 0
+                    }));
+                } catch (err) {
+                    console.error(err);
+                    message.error("删除用户失败");
+                }
+            }
+        });
+    };
 
     function handleAuth(id: number): void {
         throw new Error("Function not implemented.");
     }
 
 
-    const columns = [
+    const columns: ColumnsType<User> = [
         {
             title: "ID",
             dataIndex: "id",
             key: "id",
             width: 60,
+            fixed: 'left',
         },
         {
             title: "用户名",
             dataIndex: "username",
             key: "username",
             width: 100,
+            fixed: 'left',
         },
         {
             title: "昵称",
             dataIndex: "nickname",
             key: "nickname",
-            width: 80,
+            width: 160,
+            fixed: 'left',
         },
         {
             title: "邮箱",
@@ -228,6 +299,7 @@ export default function UserManage(): JSX.Element {
             title: '操作',
             key: 'action',
             width: 180,
+            fixed: 'right',
             render: (_, record: User) => (
                 <Space size="middle">
                     <Button
@@ -259,6 +331,17 @@ export default function UserManage(): JSX.Element {
 
     return (
         <div style={{ background: "#fff", padding: 24, borderRadius: 8 }}>
+            <style>{`
+                .even-row {
+                    background-color: #fafafa;
+                }
+                .odd-row {
+                    background-color: #ffffff; 
+                }
+                .even-row:hover, .odd-row:hover {
+                    background-color: #f0f0f0 !important;
+                }
+            `}</style>
             <Space style={{ marginBottom: 16 }} align="baseline">
                 <Space.Compact>
                     <span style={{ padding: '0 8px', lineHeight: '32px', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRight: 'none', borderRadius: '6px 0 0 6px', width: 60, textAlign: 'center' }}>关键词</span>
@@ -301,11 +384,21 @@ export default function UserManage(): JSX.Element {
                 </Button>
             </Space>
 
+            <UserEditModal
+                visible={ editModalVisible }
+                user={ currentUser }
+                onCancel={() => setEditModalVisible(false)}
+                onSave={ handleSaveUser }
+                loading={ saveLoading }
+            />
+
             <Table
-                columns={columns}
-                dataSource={users}
-                loading={loading}
+                columns={ columns }
+                dataSource={ users }
+                loading={ loading }
                 rowKey="id"
+                scroll={{ x: 'max-content' }}
+                rowClassName={(_, index) => index % 2 === 0 ? 'even-row' : 'odd-row'}
                 pagination={{
                     ...pagination,
                     showSizeChanger: true,
