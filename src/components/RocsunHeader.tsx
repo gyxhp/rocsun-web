@@ -1,9 +1,25 @@
 // src/components/Header.jsx
-import { Layout } from "antd";
+import { Layout, Dropdown, Menu } from "antd";
+import { useAuth } from "../contexts/AuthContext";
+import type { MenuProps } from 'antd';
 
 const { Header } = Layout;
 
 export default function RocsunHeader() {
+  const { user, logout } = useAuth();
+  
+  const items: MenuProps['items'] = [
+    {
+      key: '1',
+      label: '个人中心',
+    },
+    {
+      key: '2',
+      label: '退出登录',
+      onClick: logout
+    }
+  ];
+
   return (
     <Header
       style={{
@@ -17,9 +33,11 @@ export default function RocsunHeader() {
       }}
     >
       <h3 style={{ margin: 0 }}>Rocsun 管理系统</h3>
-      <div>
-        <span>👤 Admin</span>
-      </div>
+      <Dropdown menu={{ items }} placement="bottomRight">
+        <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+          <span style={{ marginRight: 8 }}>👤 {user?.nickname || '用户'}</span>
+        </div>
+      </Dropdown>
     </Header>
   );
 }

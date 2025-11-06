@@ -1,4 +1,5 @@
-import { Button, Input, message, Modal, Select, Space, Table, Tag, type TablePaginationConfig } from "antd";
+import { Button, Flex, Input, message, Modal, Select, Space, Table, Tag, type TablePaginationConfig } from "antd";
+import { USER_API } from "../config/api";
 import UserEditModal from "../components/UserEditModal";
 import type { ColumnsType, FilterValue, SorterResult } from "antd/es/table/interface";
 import { useEffect, useState, useCallback, type JSX } from "react";
@@ -28,6 +29,7 @@ interface ApiResponse {
 export default function UserManage(): JSX.Element {
     const [users, setUsers] = useState<User[]>([]);
     const [editModalVisible, setEditModalVisible] = useState(false);
+    const [createModalVisible, setCreateModalVisible] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [saveLoading, setSaveLoading] = useState(false);
     const [username, setUsername] = useState<string | undefined>(undefined)
@@ -54,7 +56,7 @@ export default function UserManage(): JSX.Element {
                     role: role,
                 }
 
-                const res = await fetch("http://localhost:8080/user/page", {
+                const res = await fetch(USER_API.PAGE, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
@@ -100,8 +102,8 @@ export default function UserManage(): JSX.Element {
     // 当表格触发分页/排序/筛选变化时的回调（注意：明确类型，避免 implicit any）
     const handleTableChange = (
         pag: TablePaginationConfig,
-        filters: Record<string, FilterValue | null>,
-        sorter: SorterResult<User> | SorterResult<User>[]
+        // filters: Record<string, FilterValue | null>,
+        // sorter: SorterResult<User> | SorterResult<User>[]
     ) => {
         console.log("触发表格变化事件");
         const page = pag.current ?? 1;
@@ -138,9 +140,18 @@ export default function UserManage(): JSX.Element {
     const handleSaveUser = async (user: User) => {
         setSaveLoading(true);
         try {
-            // 这里调用API保存用户
-            const res = await fetch(`http://localhost:8080/user/update`, {
-                method: "POST",
+            let url = USER_API.UPDATE;
+            const method = 'POST';
+            
+            if (!user.id) {
+                // 新增用户
+                url = USER_API.CREATE;
+                const { ...userData } = user;
+                user = userData as User;
+            }
+
+            const res = await fetch(url, {
+                method,
                 headers: {
                     "Content-Type": "application/json",
                 },
@@ -151,13 +162,29 @@ export default function UserManage(): JSX.Element {
                 throw new Error(`HTTP ${res.status}`);
             }
 
-            // 更新本地状态
-            setUsers(users.map(u => u.id === user.id ? user : u));
-            message.success("用户信息更新成功");
+            const result = await res.json();
+            
+            if (user.id) {
+                // 更新用户
+                setUsers(users.map(u => u.id === user.id ? user : u));
+                message.success("用户信息更新成功");
+            } else {
+                // 新增用户
+                const newUser = result.data;
+                setUsers([...users, newUser]);
+                message.success("用户新增成功");
+                
+                // 更新分页总数
+                setPagination(prev => ({
+                    ...prev,
+                    total: prev.total ? prev.total + 1 : 1
+                }));
+            }
+            
             setEditModalVisible(false);
         } catch (err) {
             console.error(err);
-            message.error("更新用户信息失败");
+            message.error(user.id ? "更新用户信息失败" : "新增用户失败");
         } finally {
             setSaveLoading(false);
         }
@@ -171,7 +198,7 @@ export default function UserManage(): JSX.Element {
             cancelText: '取消',
             onOk: async () => {
                 try {
-                    const res = await fetch(`http://localhost:8080/user/logicDelete/${id}`, {
+                    const res = await fetch(USER_API.DELETE(id), {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
@@ -198,11 +225,6 @@ export default function UserManage(): JSX.Element {
             }
         });
     };
-
-    function handleAuth(id: number): void {
-        throw new Error("Function not implemented.");
-    }
-
 
     const columns: ColumnsType<User> = [
         {
@@ -298,7 +320,7 @@ export default function UserManage(): JSX.Element {
         {
             title: '操作',
             key: 'action',
-            width: 180,
+            width: 130,
             fixed: 'right',
             render: (_, record: User) => (
                 <Space size="middle">
@@ -315,14 +337,7 @@ export default function UserManage(): JSX.Element {
                         autoInsertSpace
                         onClick={() => handleDelete(record.id)}
                     >
-                        逻辑删除
-                    </Button>
-                    <Button
-                        type="primary"
-                        autoInsertSpace
-                        onClick={() => handleAuth(record.id)}
-                    >
-                        授权
+                        删除
                     </Button>
                 </Space>
             ),
@@ -331,17 +346,6 @@ export default function UserManage(): JSX.Element {
 
     return (
         <div style={{ background: "#fff", padding: 24, borderRadius: 8 }}>
-            <style>{`
-                .even-row {
-                    background-color: #fafafa;
-                }
-                .odd-row {
-                    background-color: #ffffff; 
-                }
-                .even-row:hover, .odd-row:hover {
-                    background-color: #f0f0f0 !important;
-                }
-            `}</style>
             <Space style={{ marginBottom: 16 }} align="baseline">
                 <Space.Compact>
                     <span style={{ padding: '0 8px', lineHeight: '32px', background: '#f5f5f5', border: '1px solid #d9d9d9', borderRight: 'none', borderRadius: '6px 0 0 6px', width: 60, textAlign: 'center' }}>关键词</span>
@@ -384,12 +388,27 @@ export default function UserManage(): JSX.Element {
                 </Button>
             </Space>
 
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                <Button 
+                    type="primary" 
+                    onClick={() => {
+                        setCurrentUser(null);
+                        setEditModalVisible(true);
+                    }}
+                >
+                    新增用户
+                </Button>
+            </div>
+
             <UserEditModal
-                visible={ editModalVisible }
-                user={ currentUser }
-                onCancel={() => setEditModalVisible(false)}
-                onSave={ handleSaveUser }
-                loading={ saveLoading }
+                visible={editModalVisible || createModalVisible}
+                user={currentUser}
+                onCancel={() => {
+                    setEditModalVisible(false);
+                    setCreateModalVisible(false);
+                }}
+                onSave={handleSaveUser}
+                loading={saveLoading}
             />
 
             <Table
